@@ -1,0 +1,17 @@
+TCF COMMAND CENTRE — DIRECT VERCEL DEPLOYMENT
+
+This package is the verified production dashboard. It deploys directly to the
+existing tcf6/dashboard Vercel project, so GitHub is not required.
+
+1. Extract the ZIP completely.
+2. Double-click DEPLOY-TCF-WINDOWS.cmd.
+3. Sign into the TCF Vercel account when the official Vercel page opens.
+4. The script opens the project environment-variable page. Add any missing
+   core variables shown in the command window, then return and press a key.
+5. The script deploys the application to production.
+
+Never paste passwords, service-role keys, Stripe secrets, or social API tokens
+into ChatGPT. Enter them only inside the Vercel environment-variable page.
+
+Expected production address:
+https://dashboard-navy-seven-25.vercel.app/
