@@ -25,5 +25,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/auth/:path*"]
+  matcher: ["/dashboard/:path*", "/login", "/forgot-password", "/reset-password", "/auth/:path*"]
 };

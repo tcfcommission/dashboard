@@ -42,6 +42,17 @@ test("auth refresh responses cannot be cached", async () => {
   assert.doesNotMatch(source, /supabase\.auth\.getSession\(\)/);
 });
 
+test("password recovery uses an allowlisted internal callback", async () => {
+  const form = await read("components/forgot-password-form.tsx");
+  const callback = await read("app/auth/callback/route.ts");
+  const reset = await read("components/reset-password-form.tsx");
+  assert.match(form, /resetPasswordForEmail/);
+  assert.match(form, /\/auth\/callback\?next=\/reset-password/);
+  assert.match(callback, /requestedNext === "\/reset-password"/);
+  assert.doesNotMatch(callback, /NextResponse\.redirect\(requestedNext/);
+  assert.match(reset, /updateUser\(\{ password \}\)/);
+});
+
 test("current Supabase runtime baseline uses Node 22 or later", async () => {
   const pkg = JSON.parse(await read("package.json"));
   assert.match(pkg.engines.node, />=22/);

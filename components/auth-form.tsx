@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { ArrowRight, LoaderCircle, LockKeyhole } from "lucide-react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 export function AuthForm() {
@@ -32,7 +33,7 @@ export function AuthForm() {
         <input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="owner@tcf…" required />
       </label>
       <label>
-        <span>Password</span>
+        <span className="field-label-row"><span>Password</span><Link href="/forgot-password">Forgot password?</Link></span>
         <input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Your Supabase password" required minLength={8} />
       </label>
       {error && <p className="form-error" role="alert">{error}</p>}
