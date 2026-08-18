@@ -4,13 +4,14 @@ import { CSSProperties, FormEvent, ReactNode, useEffect, useMemo, useState } fro
 import {
   Activity, ArrowUpRight, Banknote, BarChart3, Bot, BriefcaseBusiness, CalendarDays,
   Check, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, Command, ExternalLink,
-  Camera, Goal as GoalIcon, Layers3, Link2, ListTodo, LoaderCircle, LogOut, Menu,
+  Camera, Goal as GoalIcon, KeyRound, Layers3, Link2, ListTodo, LoaderCircle, LogOut, Menu,
   MoreHorizontal, Plus, RefreshCw, Search, Settings2, Smartphone, Sparkles, Target,
   Trash2, TrendingUp, Users, Video, WalletCards, X, Zap
 } from "lucide-react";
 import type { DashboardData, Integration, Task } from "@/lib/types";
+import { createClient } from "@/lib/supabase/client";
 
-type View = "command" | "tasks" | "money" | "socials" | "goals" | "integrations" | "activity";
+type View = "command" | "tasks" | "money" | "socials" | "goals" | "integrations" | "activity" | "account";
 type ModalMode = "task" | "goal" | "social" | "business" | "transaction" | "integration" | null;
 
 const nav: Array<{ id: View; label: string; icon: typeof Command }> = [
@@ -20,7 +21,8 @@ const nav: Array<{ id: View; label: string; icon: typeof Command }> = [
   { id: "socials", label: "Socials", icon: Users },
   { id: "goals", label: "Goals", icon: Target },
   { id: "integrations", label: "Integrations", icon: Link2 },
-  { id: "activity", label: "Activity", icon: Activity }
+  { id: "activity", label: "Activity", icon: Activity },
+  { id: "account", label: "Account", icon: Settings2 }
 ];
 
 const providerDetails: Record<string, { name: string; description: string; icon: typeof Link2; availability: string }> = {
@@ -166,6 +168,7 @@ export function DashboardShell({ initialData, email, setupError }: { initialData
           {!setupError && view === "goals" && <GoalsView data={data} onAdd={() => setModal("goal")} remove={remove} busy={busy} />}
           {!setupError && view === "integrations" && <IntegrationsView data={data} onAdd={() => setModal("integration")} sync={sync} mutate={mutate} remove={remove} busy={busy} />}
           {!setupError && view === "activity" && <ActivityView data={data} />}
+          {!setupError && view === "account" && <AccountView email={email} setNotice={setNotice} />}
         </div>
       </main>
 
@@ -249,6 +252,45 @@ function IntegrationsView({ data, onAdd, sync, mutate, remove, busy }: { data: D
 }
 
 function ActivityView({ data }: { data: DashboardData }) { return <PageSection eyebrow="Audit trail" title="Every sync leaves evidence." text="Successes, skips and errors are recorded so automation never becomes invisible."><div className="panel"><div className="activity-list">{data.syncRuns.map((run) => <div key={run.id}><div className={`activity-icon ${run.status}`}>{run.status === "success" ? <CheckCircle2/> : run.status === "failed" ? <X/> : <RefreshCw/>}</div><div><strong>{run.provider} sync</strong><p>{run.error_message || (run.summary ? JSON.stringify(run.summary) : "Sync started")}</p></div><span>{relative(run.started_at)}</span></div>)}{!data.syncRuns.length && <Empty icon={<Activity/>} title="No automation runs yet" text="Runs appear here after a manual sync, cron or webhook event." />}</div></div></PageSection>; }
+
+function AccountView({ email, setNotice }: { email: string; setNotice: (notice: { type: "success" | "error"; text: string }) => void }) {
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function updatePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (password.length < 12) {
+      setNotice({ type: "error", text: "Use at least 12 characters for your password." });
+      return;
+    }
+    if (password !== confirmation) {
+      setNotice({ type: "error", text: "The two passwords do not match." });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      setPassword("");
+      setConfirmation("");
+      setNotice({ type: "success", text: "Your dashboard password has been saved." });
+    } catch (error) {
+      setNotice({ type: "error", text: error instanceof Error ? error.message : "Password update failed." });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return <PageSection eyebrow="Owner security" title="Your access, under your control." text="Use a secure email link today. Add or change your password here whenever you are ready.">
+    <div className="account-grid">
+      <div className="panel account-panel"><PanelHead title="Owner identity" meta="Authenticated account"/><div className="account-body"><div className="account-identity"><div className="avatar">TC</div><div><strong>TCF owner</strong><span>{email}</span></div></div><p>Only this authenticated Supabase account can read or change the command centre data.</p></div></div>
+      <div className="panel account-panel"><PanelHead title="Set or change password" meta="Optional with email sign-in"/><form className="account-form" onSubmit={updatePassword}><Field label="New password"><input type="password" autoComplete="new-password" minLength={12} required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 12 characters"/></Field><Field label="Confirm password"><input type="password" autoComplete="new-password" minLength={12} required value={confirmation} onChange={(event) => setConfirmation(event.target.value)} placeholder="Enter it again"/></Field><button className="primary-button" disabled={saving}>{saving ? <LoaderCircle className="spin" size={16}/> : <KeyRound size={16}/>} {saving ? "Saving password…" : "Save password"}</button></form></div>
+    </div>
+  </PageSection>;
+}
 
 function PageSection({ eyebrow, title, text, action, children }: { eyebrow: string; title: string; text: string; action?: ReactNode; children: ReactNode }) { return <><section className="page-heading"><div><p className="eyebrow">{eyebrow}</p><h2>{title}</h2><p>{text}</p></div>{action && <div className="page-actions">{action}</div>}</section>{children}</>; }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { ArrowRight, LoaderCircle, LockKeyhole } from "lucide-react";
+import { ArrowRight, LoaderCircle, LockKeyhole, Mail } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
@@ -10,6 +10,8 @@ export function AuthForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -23,6 +25,33 @@ export function AuthForm() {
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Sign-in failed.");
       setLoading(false);
+    }
+  }
+
+  async function sendEmailLink() {
+    if (!email) {
+      setError("Enter the owner email address first.");
+      return;
+    }
+
+    setEmailLoading(true);
+    setEmailSent(false);
+    setError("");
+    try {
+      const supabase = createClient();
+      const { error: authError } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: false,
+          emailRedirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+      if (authError) throw authError;
+      setEmailSent(true);
+    } catch (authError) {
+      setError(authError instanceof Error ? authError.message : "The secure sign-in link could not be sent.");
+    } finally {
+      setEmailLoading(false);
     }
   }
 
@@ -42,6 +71,12 @@ export function AuthForm() {
         {loading ? "Signing in…" : "Enter command centre"}
         {!loading && <ArrowRight size={17} />}
       </button>
+      <div className="auth-option-divider"><span>or</span></div>
+      <button type="button" className="ghost-button auth-email-button" disabled={emailLoading || loading} onClick={sendEmailLink}>
+        {emailLoading ? <LoaderCircle className="spin" size={17} /> : <Mail size={17} />}
+        {emailLoading ? "Sending secure link…" : "Email me a sign-in link"}
+      </button>
+      {emailSent && <p className="form-success" role="status">Check your email and open the one-time sign-in link. No password is required.</p>}
     </form>
   );
 }

@@ -53,6 +53,15 @@ test("password recovery uses an allowlisted internal callback", async () => {
   assert.match(reset, /updateUser\(\{ password \}\)/);
 });
 
+test("passwordless owner access cannot create public users", async () => {
+  const login = await read("components/auth-form.tsx");
+  const dashboard = await read("components/dashboard-shell.tsx");
+  assert.match(login, /signInWithOtp/);
+  assert.match(login, /shouldCreateUser: false/);
+  assert.match(login, /emailRedirectTo: `\$\{window\.location\.origin\}\/auth\/callback`/);
+  assert.match(dashboard, /supabase\.auth\.updateUser\(\{ password \}\)/);
+});
+
 test("current Supabase runtime baseline uses Node 22 or later", async () => {
   const pkg = JSON.parse(await read("package.json"));
   assert.match(pkg.engines.node, />=22/);
