@@ -4,6 +4,15 @@ import { FormEvent, useState } from "react";
 import { ArrowRight, ExternalLink, LoaderCircle, Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
+const OWNER_EMAIL = "tcfcommission@gmail.com";
+
+function normalizeEmail(value: string) {
+  return value
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
 export function AuthForm() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
@@ -12,9 +21,13 @@ export function AuthForm() {
 
   async function sendEmailLink(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const ownerEmail = email.trim().toLowerCase();
+    const ownerEmail = normalizeEmail(email);
     if (!ownerEmail) {
       setError("Enter the owner email address first.");
+      return;
+    }
+    if (ownerEmail !== OWNER_EMAIL) {
+      setError("That email is not enabled for private owner access.");
       return;
     }
 
@@ -23,13 +36,29 @@ export function AuthForm() {
     setError("");
     try {
       const supabase = createClient();
-      const { error: authError } = await supabase.auth.signInWithOtp({
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      let { error: authError } = await supabase.auth.signInWithOtp({
         email: ownerEmail,
         options: {
           shouldCreateUser: false,
-          emailRedirectTo: `${window.location.origin}/auth/callback`
+          emailRedirectTo: redirectTo
         }
       });
+
+      // Some hosted Auth instances can return otp_disabled even when the
+      // confirmed owner already exists. Retry only for the exact allowlisted
+      // owner. If the account were ever missing, its new profile would still
+      // default to access_enabled=false and remain blocked by RLS.
+      if (authError?.code === "otp_disabled" || authError?.message.toLowerCase().includes("signups not allowed for otp")) {
+        ({ error: authError } = await supabase.auth.signInWithOtp({
+          email: OWNER_EMAIL,
+          options: {
+            shouldCreateUser: true,
+            emailRedirectTo: redirectTo
+          }
+        }));
+      }
+
       if (authError) throw authError;
       setEmail(ownerEmail);
       setEmailSent(true);
