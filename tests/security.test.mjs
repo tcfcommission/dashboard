@@ -53,13 +53,19 @@ test("password recovery uses an allowlisted internal callback", async () => {
   assert.match(reset, /updateUser\(\{ password \}\)/);
 });
 
-test("passwordless owner access cannot create public users", async () => {
+test("passwordless access is restricted to the owner and protected by RLS", async () => {
   const login = await read("components/auth-form.tsx");
   const dashboard = await read("components/dashboard-shell.tsx");
+  const migration = await read("supabase/migrations/20260817230000_production_foundation.sql");
   assert.match(login, /signInWithOtp/);
   assert.match(login, /shouldCreateUser: false/);
-  assert.match(login, /emailRedirectTo: `\$\{window\.location\.origin\}\/auth\/callback`/);
+  assert.match(login, /OWNER_EMAIL = "tcfcommission@gmail\.com"/);
+  assert.match(login, /ownerEmail !== OWNER_EMAIL/);
+  assert.match(login, /authError\?\.code === "otp_disabled"/);
+  assert.match(login, /shouldCreateUser: true/);
+  assert.match(login, /const redirectTo = `\$\{window\.location\.origin\}\/auth\/callback`/);
   assert.doesNotMatch(login, /signInWithPassword/);
+  assert.match(migration, /access_enabled boolean not null default false/i);
   assert.match(dashboard, /supabase\.auth\.updateUser\(\{ password \}\)/);
 });
 
