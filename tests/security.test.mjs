@@ -59,6 +59,7 @@ test("passwordless owner access cannot create public users", async () => {
   assert.match(login, /signInWithOtp/);
   assert.match(login, /shouldCreateUser: false/);
   assert.match(login, /emailRedirectTo: `\$\{window\.location\.origin\}\/auth\/callback`/);
+  assert.doesNotMatch(login, /signInWithPassword/);
   assert.match(dashboard, /supabase\.auth\.updateUser\(\{ password \}\)/);
 });
 

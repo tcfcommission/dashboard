@@ -1,36 +1,19 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { ArrowRight, LoaderCircle, LockKeyhole, Mail } from "lucide-react";
-import Link from "next/link";
+import { ArrowRight, ExternalLink, LoaderCircle, Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 export function AuthForm() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
-  async function submit(event: FormEvent) {
+  async function sendEmailLink(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      const supabase = createClient();
-      const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-      if (authError) throw authError;
-      window.location.assign("/dashboard");
-    } catch (authError) {
-      setError(authError instanceof Error ? authError.message : "Sign-in failed.");
-      setLoading(false);
-    }
-  }
-
-  async function sendEmailLink() {
-    if (!email) {
+    const ownerEmail = email.trim().toLowerCase();
+    if (!ownerEmail) {
       setError("Enter the owner email address first.");
       return;
     }
@@ -41,57 +24,62 @@ export function AuthForm() {
     try {
       const supabase = createClient();
       const { error: authError } = await supabase.auth.signInWithOtp({
-        email,
+        email: ownerEmail,
         options: {
           shouldCreateUser: false,
           emailRedirectTo: `${window.location.origin}/auth/callback`
         }
       });
       if (authError) throw authError;
+      setEmail(ownerEmail);
       setEmailSent(true);
     } catch (authError) {
-      setError(authError instanceof Error ? authError.message : "The secure sign-in link could not be sent.");
+      const message = authError instanceof Error ? authError.message.toLowerCase() : "";
+      if (message.includes("rate limit") || message.includes("only request")) {
+        setError("A sign-in email was already requested. Open Gmail and use the newest link. If it is not there, wait a few minutes, then refresh this page once.");
+      } else if (message.includes("signup") || message.includes("not allowed")) {
+        setError("That email is not enabled for private owner access.");
+      } else {
+        setError("The sign-in email could not be sent. Check the address and try once more.");
+      }
     } finally {
       setEmailLoading(false);
     }
   }
 
   return (
-    <form className="login-form" onSubmit={(event) => {
-      if (showPassword) void submit(event);
-      else {
-        event.preventDefault();
-        void sendEmailLink();
-      }
-    }}>
+    <form className="login-form" onSubmit={sendEmailLink}>
       <label>
         <span>Email</span>
-        <input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="owner@tcf…" required />
+        <input
+          type="email"
+          autoComplete="email"
+          autoCapitalize="none"
+          spellCheck={false}
+          value={email}
+          onChange={(event) => {
+            setEmail(event.target.value);
+            setError("");
+          }}
+          placeholder="tcfcommission@gmail.com"
+          disabled={emailSent}
+          required
+        />
       </label>
-      {showPassword && <label>
-        <span className="field-label-row"><span>Password</span><Link href="/forgot-password">Forgot password?</Link></span>
-        <input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Your Supabase password" required minLength={8} />
-      </label>}
       {error && <p className="form-error" role="alert">{error}</p>}
-      {showPassword ? <button className="primary-button login-button" disabled={loading || emailLoading}>
-          {loading ? <LoaderCircle className="spin" size={17} /> : <LockKeyhole size={17} />}
-          {loading ? "Signing in…" : "Enter command centre"}
-          {!loading && <ArrowRight size={17} />}
-        </button> : <button className="primary-button login-button" disabled={emailLoading || loading}>
-          {emailLoading ? <LoaderCircle className="spin" size={17} /> : <Mail size={17} />}
-          {emailLoading ? "Sending secure link…" : "Email me a sign-in link"}
-          {!emailLoading && <ArrowRight size={17} />}
-        </button>}
-      {!showPassword && emailSent && <p className="form-success" role="status">Check your email and open the one-time sign-in link. No password is required.</p>}
-      <div className="auth-option-divider"><span>or</span></div>
-      <button type="button" className="ghost-button auth-email-button" disabled={emailLoading || loading} onClick={() => {
-        setShowPassword((visible) => !visible);
-        setError("");
-        setEmailSent(false);
-      }}>
-        {showPassword ? <Mail size={17} /> : <LockKeyhole size={17} />}
-        {showPassword ? "Use an email sign-in link" : "Use a password instead"}
+      <button className="primary-button login-button" disabled={emailLoading || emailSent}>
+        {emailLoading ? <LoaderCircle className="spin" size={17} /> : <Mail size={17} />}
+        {emailLoading ? "Sending your link…" : emailSent ? "Sign-in link sent" : "Email me a sign-in link"}
+        {!emailLoading && !emailSent && <ArrowRight size={17} />}
       </button>
+      {emailSent && <>
+        <p className="form-success" role="status">Link sent. Open the newest TCF sign-in email and click it once. No password is required.</p>
+        <a className="ghost-button auth-email-button" href="https://mail.google.com/mail/u/0/#inbox" target="_blank" rel="noreferrer">
+          <Mail size={17} />
+          Open Gmail
+          <ExternalLink size={15} />
+        </a>
+      </>}
     </form>
   );
 }

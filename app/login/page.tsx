@@ -21,7 +21,7 @@ export default async function LoginPage() {
         <h1 id="login-title">TCF Command Centre</h1>
         <p className="login-copy">Your businesses, money, audience, priorities and automations—one secure operating view.</p>
         <AuthForm />
-        <p className="login-foot">No public registration. Owner access is managed in Supabase Auth.</p>
+        <p className="login-foot">Private owner access. Your session stays signed in on this device.</p>
       </section>
     </main>
   );
