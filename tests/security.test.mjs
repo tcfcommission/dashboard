@@ -45,16 +45,20 @@ test("auth refresh responses cannot be cached", async () => {
 test("password recovery uses an allowlisted internal callback", async () => {
   const form = await read("components/forgot-password-form.tsx");
   const callback = await read("app/auth/callback/route.ts");
+  const confirm = await read("app/auth/confirm/route.ts");
   const reset = await read("components/reset-password-form.tsx");
   assert.match(form, /resetPasswordForEmail/);
   assert.match(form, /\/auth\/callback\?next=\/reset-password/);
   assert.match(callback, /requestedNext === "\/reset-password"/);
   assert.doesNotMatch(callback, /NextResponse\.redirect\(requestedNext/);
+  assert.match(confirm, /type === "recovery" \? "\/reset-password" : "\/dashboard"/);
+  assert.match(confirm, /allowedTypes = new Set<EmailOtpType>\(\["email", "recovery"\]\)/);
   assert.match(reset, /updateUser\(\{ password \}\)/);
 });
 
 test("passwordless access is restricted to the owner and protected by RLS", async () => {
   const login = await read("components/auth-form.tsx");
+  const confirm = await read("app/auth/confirm/route.ts");
   const dashboard = await read("components/dashboard-shell.tsx");
   const migration = await read("supabase/migrations/20260817230000_production_foundation.sql");
   assert.match(login, /signInWithOtp/);
@@ -65,6 +69,9 @@ test("passwordless access is restricted to the owner and protected by RLS", asyn
   assert.match(login, /shouldCreateUser: true/);
   assert.match(login, /const redirectTo = `\$\{window\.location\.origin\}\/auth\/callback`/);
   assert.doesNotMatch(login, /signInWithPassword/);
+  assert.match(confirm, /supabase\.auth\.verifyOtp/);
+  assert.match(confirm, /token_hash: tokenHash/);
+  assert.match(confirm, /searchParams\.delete\("token_hash"\)/);
   assert.match(migration, /access_enabled boolean not null default false/i);
   assert.match(dashboard, /supabase\.auth\.updateUser\(\{ password \}\)/);
 });
